@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -96,19 +97,19 @@ MGPU_HOST void Reduce(InputIt data_global, int count, T identity, Op op,
 
 	if(count <= 256) {
 		typedef LaunchBoxVT<256, 1> Tuning;
-		KernelReduce<Tuning><<<1, 256, 0, context.Stream()>>>(
+		hipLaunchKernelGGL((KernelReduce<Tuning>), dim3(1), dim3(256), 0, context.Stream(), 
 			data_global, count, identity, op, reduce_global);
 		MGPU_SYNC_CHECK("KernelReduce");
 
 	} else if(count <= 768) {
 		typedef LaunchBoxVT<256, 3> Tuning;
-		KernelReduce<Tuning><<<1, 256, 0, context.Stream()>>>(
+		hipLaunchKernelGGL((KernelReduce<Tuning>), dim3(1), dim3(256), 0, context.Stream(), 
 			data_global, count, identity, op, reduce_global);
 		MGPU_SYNC_CHECK("KernelReduce");
 
 	} else if(count <= 512 * ((sizeof(T) > 4) ? 4 : 8)) {
 		typedef LaunchBoxVT<512, (sizeof(T) > 4) ? 4 : 8> Tuning;
-		KernelReduce<Tuning><<<1, 512, 0, context.Stream()>>>(
+		hipLaunchKernelGGL((KernelReduce<Tuning>), dim3(1), dim3(512), 0, context.Stream(), 
 			data_global, count, identity, op, reduce_global);
 		MGPU_SYNC_CHECK("KernelReduce");
 
@@ -120,7 +121,7 @@ MGPU_HOST void Reduce(InputIt data_global, int count, T identity, Op op,
 		int numBlocks = MGPU_DIV_UP(count, NV);
 
 		MGPU_MEM(T) reduceDevice = context.Malloc<T>(numBlocks);
-		KernelReduce<Tuning><<<numBlocks, launch.x, 0, context.Stream()>>>(
+		hipLaunchKernelGGL((KernelReduce<Tuning>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(), 
 			data_global, count, identity, op, reduceDevice->get());
 		MGPU_SYNC_CHECK("KernelReduce");
 

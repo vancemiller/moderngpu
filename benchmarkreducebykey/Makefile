@@ -1,21 +1,21 @@
 
-include ../common.mk
+include ../common.mk 
 
 all: build
 
 build: benchmarkreducebykey
 
 benchmarkreducebykey.o: benchmarkreducebykey.cu 
-	nvcc $(NVCCFLAGS) -o $@ -c $<
+	hipcc $(hipccFLAGS) -o $@ -c $< -IThrust
 
 mgpucontext.o: ../src/mgpucontext.cu
-	nvcc $(NVCCFLAGS) -o $@ -c $<
+	hipcc $(hipccFLAGS) -o $@ -c $<
 
 mgpuutil.o: ../src/mgpuutil.cpp
-	nvcc $(NVCCFLAGS) -o $@ -c $<
+	hipcc $(hipccFLAGS) -o $@ -c $<
 
 benchmarkreducebykey: benchmarkreducebykey.o mgpucontext.o mgpuutil.o
-	nvcc $(NVCCFLAGS) -o $@ $+
+	hipcc $(hipccFLAGS) -o $@ $+
 
 run: build
 	./benchmarkreducebykey

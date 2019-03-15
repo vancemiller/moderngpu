@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -152,6 +153,7 @@ MGPU_LAUNCH_BOUNDS void KernelSegSortMerge(const KeyType* keys_global,
 		KeyType keys[NT * (VT + 1)];
 		int indices[NV];
 		int4 range;
+		~Shared() {}
 	};
 	__shared__ Shared shared;
 
@@ -465,7 +467,7 @@ MGPU_HOST MGPU_MEM(byte) AllocSegSortBuffers(int count, int nv,
 		countersSize);
 
 	// Fill the counters with 0s on the first run.
-	cudaMemsetAsync(support.queueCounters_global, 0, sizeof(int4), 
+	hipMemsetAsync(support.queueCounters_global, 0, sizeof(int4), 
 		context.Stream());
 	
 	return mem;
@@ -478,8 +480,8 @@ public:
 
 	void Pass(SegSortSupport& support, int pass) {
 		int2 counters;
-		cudaMemcpy(&counters, support.queueCounters_global, sizeof(int2), 
-			cudaMemcpyDeviceToHost);
+		hipMemcpy(&counters, support.queueCounters_global, sizeof(int2), 
+			hipMemcpyDeviceToHost);
 
 		printf("pass %2d:   %7d (%6.2lf%%)     %7d (%6.2lf%%)\n", pass,
 			counters.x, 100.0 * counters.x / numBlocks,
@@ -528,14 +530,15 @@ KeyType* keysSource_global, ValType* valsSource_global,
 	SegSortPassInfo info(numBlocks);
 	for(int pass = 0; pass < numPasses; ++pass) {
 		if(0 == pass) {
-			KernelSegSortPartitionBase<NT2, Segments>
-				<<<numPartBlocks, NT2, 0, context.Stream()>>>(keysSource_global,
-				support, count, NV, numPartitions, comp);
+			hipLaunchKernelGGL((KernelSegSortPartitionBase<NT2, Segments, KeyType,
+				Comp>), dim3(numPartBlocks), dim3(NT2), 0, context.Stream(),
+				keysSource_global, support, count, NV, numPartitions, comp);
 			MGPU_SYNC_CHECK("KernelSegSortPartitionBase");
 		} else {
-			KernelSegSortPartitionDerived<NT2, Segments>
-				<<<numPartBlocks, NT2, 0, context.Stream()>>>(keysSource_global, 
-				support, count, numBlocks2, pass, NV, numPartitions, comp);
+			hipLaunchKernelGGL((KernelSegSortPartitionDerived<NT2, Segments, KeyType,
+				Comp>), dim3(numPartBlocks), dim3(NT2), 0, context.Stream(),
+				keysSource_global, support, count, numBlocks2, pass, NV,
+				numPartitions, comp);
 			MGPU_SYNC_CHECK("KernelSegSortPartitionDerived");
 
 			support.ranges2_global += numBlocks2;
@@ -543,9 +546,9 @@ KeyType* keysSource_global, ValType* valsSource_global,
 		}
 		if(verbose) info.Pass(support, pass);
 				
-		KernelSegSortMerge<Tuning, Segments, HasValues>
-			<<<numCTAs, launch.x, 0, context.Stream()>>>(keysSource_global,
-			valsSource_global, support, count, pass, keysDest_global, 
+		hipLaunchKernelGGL((KernelSegSortMerge<Tuning, Segments, HasValues, KeyType,
+			ValType, Comp>), dim3(numCTAs), dim3(launch.x), 0, context.Stream(),
+			keysSource_global, valsSource_global, support, count, pass, keysDest_global, 
 			valsDest_global, comp);
 		MGPU_SYNC_CHECK("KernelSegSortMerge");
 
@@ -583,8 +586,8 @@ MGPU_HOST void SegSortKeysFromFlags(T* data_global, int count,
 	T* source = data_global;
 	T* dest = destDevice->get();
 
-	KernelSegBlocksortFlags<Tuning, Stable, false>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(source, (const int*)0,
+	hipLaunchKernelGGL((KernelSegBlocksortFlags<Tuning, Stable, false>),
+		dim3(numBlocks), dim3(launch.x), 0, context.Stream(), source, (const int*)0,
 		count, flags_global, (1 & numPasses) ? dest : source, (int*)0,
 		support.ranges_global, comp);
 	MGPU_SYNC_CHECK("KernelSegBlocksortFlags");
@@ -631,8 +634,8 @@ MGPU_HOST void SegSortPairsFromFlags(KeyType* keys_global,
 	ValType* valsSource = values_global;
 	ValType* valsDest = valsDestDevice->get();
 
-	KernelSegBlocksortFlags<Tuning, Stable, true>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(keysSource, valsSource,
+	hipLaunchKernelGGL((KernelSegBlocksortFlags<Tuning, Stable, true>),
+		dim3(numBlocks), dim3(launch.x), 0, context.Stream(), keysSource, valsSource,
 		count, flags_global, (1 & numPasses) ? keysDest : keysSource,
 		(1 & numPasses) ? valsDest : valsSource, support.ranges_global, 
 		comp);
@@ -688,9 +691,9 @@ MGPU_HOST void SegSortKeysFromIndices(T* data_global, int count,
 	MGPU_MEM(int) partitionsDevice = BinarySearchPartitions<MgpuBoundsLower>(
 		count, indices_global, indicesCount, NV, mgpu::less<int>(), context);
 
-	KernelSegBlocksortIndices<Tuning, Stable, false>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(source, (const int*)0,
-		count, indices_global, partitionsDevice->get(), 
+	hipLaunchKernelGGL((KernelSegBlocksortIndices<Tuning, Stable, false, T*, const int*, T*,
+		int*, Comp>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(), source,
+		(const int*)0, count, indices_global, partitionsDevice->get(), 
 		(1 & numPasses) ? dest : source, (int*)0, support.ranges_global, comp);
 	MGPU_SYNC_CHECK("KernelSegBlocksortIndices");
 
@@ -740,9 +743,9 @@ MGPU_HOST void SegSortPairsFromIndices(KeyType* keys_global,
 	MGPU_MEM(int) partitionsDevice = BinarySearchPartitions<MgpuBoundsLower>(
 		count, indices_global, indicesCount, NV, mgpu::less<int>(), context);
 
-	KernelSegBlocksortIndices<Tuning, Stable, true>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(keysSource, valsSource,
-		count, indices_global, partitionsDevice->get(), 
+	hipLaunchKernelGGL((KernelSegBlocksortIndices<Tuning, Stable, true, KeyType*, ValType*,
+		KeyType*, ValType*, Comp>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(),
+		keysSource, valsSource, count, indices_global, partitionsDevice->get(), 
 		(1 & numPasses) ? keysDest : keysSource, 
 		(1 & numPasses) ? valsDest : valsSource, support.ranges_global, comp);
 	MGPU_SYNC_CHECK("KernelSegBlocksortIndices");

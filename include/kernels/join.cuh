@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -258,8 +259,7 @@ MGPU_HOST int RelationalJoin(InputIt1 a_global, int aCount, InputIt2 b_global,
 		aCount, NV, 0, mgpu::less<int>(), context);
 
 	int numBlocks = MGPU_DIV_UP(leftJoinTotal + aCount, NV);
-	KernelLeftJoin<Tuning, SupportLeft>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(leftJoinTotal, 
+	hipLaunchKernelGGL((KernelLeftJoin<Tuning, SupportLeft>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(), leftJoinTotal, 
 		aLowerBound->get(), aCounts->get(), aCount, partitionsDevice->get(),
 		aIndicesDevice->get(), bIndicesDevice->get());
 	MGPU_SYNC_CHECK("KernelLeftJoin");
@@ -270,18 +270,18 @@ MGPU_HOST int RelationalJoin(InputIt1 a_global, int aCount, InputIt2 b_global,
 		int numBlocks = MGPU_DIV_UP(bCount, 8 * NT);
 
 		MGPU_MEM(int) totals = context.Malloc<int>(numBlocks);
-		KernelRightJoinUpsweep<NT><<<numBlocks, NT>>>(
+		hipLaunchKernelGGL((KernelRightJoinUpsweep<NT>), dim3(numBlocks), dim3(NT), 0, 0, 
 			(const uint64*)bMatches->get(), bCount, totals->get());
 		MGPU_SYNC_CHECK("KernelRightJoinUpsweep");
 		
 		ScanExc(totals->get(), numBlocks, context);
 
-		KernelRightJoinDownsweep<NT><<<numBlocks, NT>>>(
+		hipLaunchKernelGGL((KernelRightJoinDownsweep<NT>), dim3(numBlocks), dim3(NT), 0, 0, 
 			(const uint64*)bMatches->get(), bCount, totals->get(), 
 			bIndicesDevice->get() + leftJoinTotal);
 		MGPU_SYNC_CHECK("KernelRightJoinDownsweep");
 
-		cudaMemset(aIndicesDevice->get() + leftJoinTotal, -1, 
+		hipMemset(aIndicesDevice->get() + leftJoinTotal, -1, 
 			sizeof(int) * rightJoinTotal);
 	}
 

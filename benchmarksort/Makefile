@@ -6,16 +6,16 @@ all: build
 build: benchmarksort
 
 benchmarksort.o: benchmarksort.cu 
-	nvcc $(NVCCFLAGS) -o $@ -c $<
+	hipcc $(hipccFLAGS) -o $@ -c $<
 
 mgpucontext.o: ../src/mgpucontext.cu
-	nvcc $(NVCCFLAGS) -o $@ -c $<
+	hipcc $(hipccFLAGS) -o $@ -c $<
 
 mgpuutil.o: ../src/mgpuutil.cpp
-	nvcc $(NVCCFLAGS) -o $@ -c $<
+	hipcc $(hipccFLAGS) -o $@ -c $<
 
 benchmarksort: benchmarksort.o mgpucontext.o mgpuutil.o
-	nvcc $(NVCCFLAGS) -o $@ $+
+	hipcc $(hipccFLAGS) -o $@ $+
 
 run: build
 	./benchmarksort

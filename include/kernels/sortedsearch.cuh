@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -198,14 +199,15 @@ MGPU_HOST void SortedSearch(InputIt1 a_global, int aCount, InputIt2 b_global,
 	int* aMatchDevice = 0, *bMatchDevice = 0;
 	if(aMatchCount || bMatchCount) {
 		counters = context.Malloc<int>(2);
-		cudaMemsetAsync(counters->get(), 0, 2 * sizeof(int), context.Stream());
+		hipMemsetAsync(counters->get(), 0, 2 * sizeof(int), context.Stream());
 		aMatchDevice = counters->get();
 		bMatchDevice = aMatchDevice + 1;
 	}
 
 	// Launch the kernel.
-	KernelSortedSearch<Tuning, Bounds, IndexA, MatchA, IndexB, MatchB>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(a_global, aCount, 
+	hipLaunchKernelGGL((KernelSortedSearch<Tuning, Bounds, IndexA, MatchA, IndexB, MatchB,
+		InputIt1, InputIt2, OutputIt1, OutputIt2, Comp>),
+		dim3(numBlocks), dim3(launch.x), 0, context.Stream(), a_global, aCount,
 		b_global, bCount, partitionsDevice->get(), aIndices_global,
 		bIndices_global, aMatchDevice, bMatchDevice, comp);
 	MGPU_SYNC_CHECK("KernelSortedSearch");
@@ -213,8 +215,8 @@ MGPU_HOST void SortedSearch(InputIt1 a_global, int aCount, InputIt2 b_global,
 	// Copy counters back to host memory.
 	if((MatchA && aMatchCount) || (MatchB && bMatchCount)) {
 		int2 host;
-		cudaMemcpy(&host, counters->get(), sizeof(int2), 
-			cudaMemcpyDeviceToHost);
+		hipMemcpy(&host, counters->get(), sizeof(int2), 
+			hipMemcpyDeviceToHost);
 		if(aMatchCount) *aMatchCount = host.x;
 		if(bMatchCount) *bMatchCount = host.y;
 	}
@@ -322,8 +324,8 @@ MGPU_HOST void SortedEqualityCount(InputIt1 a_global, int aCount,
 		a_global, aCount, b_global, bCount, NV, 0, comp, context);
 
 	int numBlocks = MGPU_DIV_UP(aCount + bCount, NV);
-	KernelSortedEqualityCount<Tuning>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(a_global, aCount, 
+	hipLaunchKernelGGL((KernelSortedEqualityCount<Tuning, InputIt1, InputIt2, InputIt3,
+		OutputIt, Comp, Op>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(), a_global, aCount, 
 		b_global, bCount, partitionsDevice->get(), lb_global, counts_global,
 		comp, op);
 	MGPU_SYNC_CHECK("KernelSortedEqualityCount");

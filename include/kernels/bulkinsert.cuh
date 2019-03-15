@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -164,7 +165,8 @@ MGPU_HOST void BulkInsert(InputIt1 a_global, IndicesIt indices_global,
 		mgpu::less<int>(), context);
 
 	int numBlocks = MGPU_DIV_UP(aCount + bCount, NV);
-	KernelBulkInsert<Tuning><<<numBlocks, launch.x, 0, context.Stream()>>>(
+	hipLaunchKernelGGL((KernelBulkInsert<Tuning, InputIt1, IndicesIt, InputIt2, OutputIt>),
+		dim3(numBlocks), dim3(launch.x), 0, context.Stream(), 
 		a_global, indices_global, aCount, b_global, bCount, 
 		partitionsDevice->get(), dest_global);
 	MGPU_SYNC_CHECK("KernelBulkInsert");

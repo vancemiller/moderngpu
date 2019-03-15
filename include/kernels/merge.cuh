@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -95,8 +96,9 @@ MGPU_HOST void MergeKeys(KeysIt1 aKeys_global, int aCount, KeysIt2 bKeys_global,
 		aKeys_global, aCount, bKeys_global, bCount, NV, 0, comp, context);
 
 	int numBlocks = MGPU_DIV_UP(aCount + bCount, NV);
-	KernelMerge<Tuning, false, true>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(aKeys_global, 
+	hipLaunchKernelGGL((KernelMerge<Tuning, false, true, KeysIt1, KeysIt2, KeysIt3,
+		const int*, const int*, int*, Comp>),
+		dim3(numBlocks), dim3(launch.x), 0, context.Stream(), aKeys_global, 
 		(const int*)0, aCount, bKeys_global, (const int*)0, bCount, 
 		partitionsDevice->get(), 0, keys_global, (int*)0, comp);
 	MGPU_SYNC_CHECK("KernelMerge");
@@ -132,9 +134,9 @@ MGPU_HOST void MergePairs(KeysIt1 aKeys_global, ValsIt1 aVals_global,
 		aKeys_global, aCount, bKeys_global, bCount, NV, 0, comp, context);
 
 	int numBlocks = MGPU_DIV_UP(aCount + bCount, NV);
-	KernelMerge<Tuning, true, false>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(aKeys_global,
-		aVals_global, aCount, bKeys_global, bVals_global, bCount, 
+	hipLaunchKernelGGL((KernelMerge<Tuning, true, false, KeysIt1, KeysIt2, KeysIt3, ValsIt1,
+		ValsIt2, ValsIt3, Comp>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(),
+		aKeys_global, aVals_global, aCount, bKeys_global, bVals_global, bCount, 
 		partitionsDevice->get(), 0, keys_global, vals_global, comp);
 	MGPU_SYNC_CHECK("KernelMerge");
 }

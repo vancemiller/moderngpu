@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -62,7 +63,7 @@ void LaunchFoo(int count, CudaContext& context) {
 
 	int NV = launch.x * launch.y;
 	int numBlocks = MGPU_DIV_UP(count, NV);
-	Foo<Tuning><<<numBlocks, launch.x>>>();
+	hipLaunchKernelGGL((Foo<Tuning>), dim3(numBlocks), dim3(launch.x), 0, 0, );
 }
 
 
@@ -93,7 +94,7 @@ void LaunchBar(int count, CudaContext& context) {
 
 	int nv = launch.x * launch.y;
 	int numBlocks = MGPU_DIV_UP(count, nv);
-	Bar<Tuning><<<numBlocks, launch.x>>>();
+	hipLaunchKernelGGL((Bar<Tuning>), dim3(numBlocks), dim3(launch.x), 0, 0, );
 }
 
 int main(int argc, char** argv) { 
@@ -101,11 +102,11 @@ int main(int argc, char** argv) {
 
 	printf("Launching Foo with 1000000 inputs:\n");
 	LaunchFoo(1000000, *context);
-	cudaDeviceSynchronize();
+	hipDeviceSynchronize();
 
 	printf("\nLaunching Bar with 1000000 inputs:\n");
 	LaunchBar(1000000, *context);
-	cudaDeviceSynchronize();
+	hipDeviceSynchronize();
 
 	return 0; 
 } 

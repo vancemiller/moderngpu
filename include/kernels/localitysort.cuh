@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -61,8 +62,7 @@ MGPU_HOST void LocalitySortKeys(T* data_global, int count, CudaContext& context,
 	T* source = data_global;
 	T* dest = destDevice->get(); 
 	
-	KernelBlocksort<Tuning, false>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(source, (const int*)0,
+	hipLaunchKernelGGL((KernelBlocksort<Tuning, false>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(), source, (const int*)0,
 		count, (1 & numPasses) ? dest : source, (int*)0, comp);
 	MGPU_SYNC_CHECK("KernelBlocksort");
 
@@ -102,7 +102,7 @@ MGPU_HOST void LocalitySortPairs(KeyType* keys_global, ValType* values_global,
 	ValType* valsSource = values_global;
 	ValType* valsDest = valsDestDevice->get();
 
-	KernelBlocksort<Tuning, true><<<numBlocks, launch.x, 0, context.Stream()>>>(
+	hipLaunchKernelGGL((KernelBlocksort<Tuning, true>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(), 
 		keysSource, valsSource, count, (1 & numPasses) ? keysDest : keysSource,
 		(1 & numPasses) ? valsDest : valsSource, comp);
 	MGPU_SYNC_CHECK("KernelBlocksort");

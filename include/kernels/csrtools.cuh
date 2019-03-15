@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -77,7 +78,7 @@ MGPU_HOST MGPU_MEM(int) PartitionCsrSegReduce(int count, int nv,
 	MGPU_MEM(int) limitsDevice = context.Malloc<int>(numPartitions);
 
 	int numBlocks2 = MGPU_DIV_UP(numPartitions, 64);
-	KernelPartitionCsrSegReduce<64><<<numBlocks2, 64, 0, context.Stream()>>>(
+	hipLaunchKernelGGL((KernelPartitionCsrSegReduce<64>), dim3(numBlocks2), dim3(64), 0, context.Stream(), 
 		count, nv, csr_global, numRows, numRows2, numPartitions,
 		limitsDevice->get());
 	MGPU_SYNC_CHECK("KernelPartitionCsrSegReduce");
@@ -142,8 +143,7 @@ MGPU_HOST MGPU_MEM(int) BuildCsrPlus(int count, CsrIt csr_global,
 	// Allocate one int per thread.
 	MGPU_MEM(int) threadCodesDevice = context.Malloc<int>(launch.x * numBlocks);
 
-	KernelBuildCsrPlus<Tuning>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(count, csr_global,
+	hipLaunchKernelGGL((KernelBuildCsrPlus<Tuning>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(), count, csr_global,
 		limits_global, threadCodesDevice->get());
 	MGPU_SYNC_CHECK("KernelBuildCsrPlus");
 
@@ -315,8 +315,7 @@ MGPU_HOST void CsrStripEmpties(int nz, CsrIt csr_global,
 	MGPU_MEM(int) countsDevice = context.Malloc<int>(numBlocks + 1);
 
 	// Count the non-empty row counts for each CTA.
-	KernelCsrStripEmptiesUpsweep<Tuning>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(
+	hipLaunchKernelGGL((KernelCsrStripEmptiesUpsweep<Tuning>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(), 
 		nz, csr_global, numRows, countsDevice->get());
 	MGPU_SYNC_CHECK("KernelCsrStripEmpties");
 
@@ -327,8 +326,8 @@ MGPU_HOST void CsrStripEmpties(int nz, CsrIt csr_global,
 
 	// Compact the non-empty rows to the front. Append the indices of all 
 	// empty rows to the end of the array.
-	KernelCsrStripEmptiesDownsweep<Tuning, Indirect>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(
+	hipLaunchKernelGGL((KernelCsrStripEmptiesDownsweep<Tuning, Indirect, CsrIt, SourcesIt>),
+		dim3(numBlocks), dim3(launch.x), 0, context.Stream(), 
 		nz, csr_global, sources_global, numRows, countsDevice->get(), 
 		csr2_global, sources2_global);
 	MGPU_SYNC_CHECK("KernelCsrStringEmptiesDownsweep");
@@ -426,15 +425,14 @@ MGPU_HOST void CsrBulkInsert(const int* csr2_global, int numRows,
 
 	// Run a Merge Path partitioning to divide the data over equal intervals.
 	MGPU_MEM(int) partitionsDevice = context.Malloc<int>(numPartitions);
-	KernelCsrBulkInsertPartition<64>
-		<<<numPartitionBlocks, 64, 0, context.Stream()>>>(csr2_global, 
+	hipLaunchKernelGGL((KernelCsrBulkInsertPartition<64>), dim3(numPartitionBlocks), dim3(64), 0, context.Stream(), csr2_global, 
 		numRows, partitionsDevice->get(), numPartitions, NV);
 	MGPU_SYNC_CHECK("KernelCsrBulkInsertPartition");
 
 	// Launch the special Csr BulkInsert kernel to plug the empty rows with
 	// the identity element.
-	KernelCsrBulkInsertSpecial<Tuning>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(csr2_global,
+	hipLaunchKernelGGL((KernelCsrBulkInsertSpecial<Tuning, T, DestIt>),
+		dim3(numBlocks), dim3(launch.x), 0, context.Stream(), csr2_global,
 		data_global, numRows, partitionsDevice->get(), identity, dest_global);
 	MGPU_SYNC_CHECK("KernelCsrBulkInsertSpecial");
 }

@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -115,7 +116,8 @@ MGPU_HOST void IntervalExpand(int moveCount, IndicesIt indices_global,
 		mgpu::counting_iterator<int>(0), moveCount, indices_global, 
 		intervalCount, NV, 0, mgpu::less<int>(), context);
 
-	KernelIntervalExpand<Tuning><<<numBlocks, launch.x, 0, context.Stream()>>>(
+	hipLaunchKernelGGL((KernelIntervalExpand<Tuning, IndicesIt, ValuesIt, OutputIt>),
+		dim3(numBlocks), dim3(launch.x), 0, context.Stream(), 
 		moveCount, indices_global, values_global, intervalCount,
 		partitionsDevice->get(), output_global);
 	MGPU_SYNC_CHECK("KernelIntervalExpand");
@@ -233,9 +235,9 @@ MGPU_HOST void IntervalGather(int moveCount, GatherIt gather_global,
 		mgpu::counting_iterator<int>(0), moveCount, indices_global,
 		intervalCount, NV, 0, mgpu::less<int>(), context);
 
-	KernelIntervalMove<Tuning, true, false>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(moveCount, gather_global,
-		(const int*)0, indices_global, intervalCount, input_global,
+	hipLaunchKernelGGL((KernelIntervalMove<Tuning, true, false, GatherIt, IndicesIt, InputIt,
+		OutputIt>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(), moveCount,
+		gather_global, (const int*)0, indices_global, intervalCount, input_global,
 		partitionsDevice->get(), output_global);
 	MGPU_SYNC_CHECK("KernelIntervalMove");
 }
@@ -261,8 +263,9 @@ MGPU_HOST void IntervalScatter(int moveCount, ScatterIt scatter_global,
 		mgpu::counting_iterator<int>(0), moveCount, indices_global, 
 		intervalCount, NV, 0, mgpu::less<int>(), context);
 
-	KernelIntervalMove<Tuning, false, true>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(moveCount, (const int*)0,
+	hipLaunchKernelGGL((KernelIntervalMove<Tuning, false, true, const int, ScatterIt,
+		IndicesIt, InputIt, OutputIt>), dim3(numBlocks), dim3(launch.x), 0,
+		context.Stream(), moveCount, (const int*)0,
 		scatter_global, indices_global, intervalCount, input_global, 
 		partitionsDevice->get(), output_global);
 	MGPU_SYNC_CHECK("KernelIntervalMove");
@@ -289,10 +292,10 @@ MGPU_HOST void IntervalMove(int moveCount, GatherIt gather_global,
 		mgpu::counting_iterator<int>(0), moveCount, indices_global, 
 		intervalCount, NV, 0, mgpu::less<int>(), context);
 
-	KernelIntervalMove<Tuning, true, true>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(moveCount, gather_global, 
-		scatter_global, indices_global, intervalCount, input_global,
-		partitionsDevice->get(), output_global);
+	hipLaunchKernelGGL((KernelIntervalMove<Tuning, true, true, GatherIt, ScatterIt, IndicesIt,
+		InputIt, OutputIt>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(),
+		moveCount, gather_global, scatter_global, indices_global, intervalCount,
+		input_global, partitionsDevice->get(), output_global);
 	MGPU_SYNC_CHECK("KernelIntervalMove");
 }
 

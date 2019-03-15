@@ -6,16 +6,16 @@ all: build
 build: demo
 
 mgpucontext.o: ../src/mgpucontext.cu
-	nvcc $(NVCCFLAGS) -o $@ -c $<
+	hipcc $(hipccFLAGS) -o $@ -c $<
 
 mgpuutil.o: ../src/mgpuutil.cpp
-	nvcc $(NVCCFLAGS) -o $@ -c $<
+	hipcc $(hipccFLAGS) -o $@ -c $<
 
 demo.o: demo.cu
-	nvcc $(NVCCFLAGS) -o $@ -c $<
+	hipcc $(hipccFLAGS) -o $@ -c $<
 
 demo: demo.o mgpucontext.o mgpuutil.o
-	nvcc $(NVCCFLAGS) -o $@ $+
+	hipcc $(hipccFLAGS) -o $@ $+
 
 run: build
 	./demo

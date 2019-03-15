@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -80,7 +81,7 @@ MGPU_HOST void LoadBalanceSearch(int aCount, InputIt b_global, int bCount,
 		mgpu::less<int>(), context);
 
 	int numBlocks = MGPU_DIV_UP(aCount + bCount, NV);
-	KernelLoadBalance<Tuning><<<numBlocks, launch.x, 0, context.Stream()>>>(
+	hipLaunchKernelGGL((KernelLoadBalance<Tuning, InputIt>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(), 
 		aCount, b_global, bCount, partitionsDevice->get(), indices_global);
 	MGPU_SYNC_CHECK("KernelLoadBalance");
 }

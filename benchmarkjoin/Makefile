@@ -6,16 +6,16 @@ all: build
 build: benchmarkjoin
 
 benchmarkjoin.o: benchmarkjoin.cu 
-	nvcc $(NVCCFLAGS) -o $@ -c $<
+	hipcc $(hipccFLAGS) -o $@ -c $<
 
 mgpucontext.o: ../src/mgpucontext.cu
-	nvcc $(NVCCFLAGS) -o $@ -c $<
+	hipcc $(hipccFLAGS) -o $@ -c $<
 
 mgpuutil.o: ../src/mgpuutil.cpp
-	nvcc $(NVCCFLAGS) -o $@ -c $<
+	hipcc $(hipccFLAGS) -o $@ -c $<
 
 benchmarkjoin: benchmarkjoin.o mgpucontext.o mgpuutil.o
-	nvcc $(NVCCFLAGS) -o $@ $+
+	hipcc $(hipccFLAGS) -o $@ $+
 
 run: build
 	./benchmarkjoin

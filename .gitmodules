@@ -1,0 +1,6 @@
+[submodule "benchmarkreducebykey/Thrust"]
+	path = benchmarkreducebykey/Thrust
+	url = https://github.com/ROCmSoftwarePlatform/Thrust.git
+[submodule "benchmarkspmvcsr/rocSPARSE"]
+	path = benchmarkspmvcsr/rocSPARSE
+	url = https://github.com/ROCmSoftwarePlatform/rocSPARSE

@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -50,7 +51,8 @@ namespace mgpu {
 
 #define MGPU_LAUNCH_PARAMS typename Tuning::MGPU_SM_TAG
 #define MGPU_LAUNCH_BOUNDS __global__ \
-	__launch_bounds__(Tuning::MGPU_SM_TAG::NT, Tuning::MGPU_SM_TAG::OCC)
+	__launch_bounds__(static_cast<const int>(Tuning::MGPU_SM_TAG::NT),\
+	static_cast<const int>(Tuning::MGPU_SM_TAG::OCC))
 
 // Returns (NT, VT) from the sm version.
 template<typename Derived>

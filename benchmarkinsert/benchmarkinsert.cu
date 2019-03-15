@@ -161,8 +161,8 @@ void BenchmarkCopy(int count, int numIt, CudaContext& context) {
 
 	context.Start();
 	for(int it = 0; it < numIt; ++it) {
-		cudaMemcpy(b->get(), a->get(), sizeof(T) * count, 
-			cudaMemcpyDeviceToDevice);
+		hipMemcpy(b->get(), a->get(), sizeof(T) * count, 
+			hipMemcpyDeviceToDevice);
 		a.swap(b);
 	}
 	double elapsed = context.Split();

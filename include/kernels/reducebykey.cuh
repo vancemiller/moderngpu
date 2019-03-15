@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -192,8 +193,7 @@ MGPU_HOST void ReduceByKeyPreprocess(int count, KeysIt keys_global,
 	data->threadCodesDevice = context.Malloc<int>(numBlocks * launch.x);
 
 	// Fill out thread codes for each thread in the processing CTAs.
-	KernelReduceByKeyPreprocess<Tuning>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(keys_global, count, 
+	hipLaunchKernelGGL((KernelReduceByKeyPreprocess<Tuning>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(), keys_global, count, 
 		data->threadCodesDevice->get(), data->limitsDevice->get(), comp);
 	MGPU_SYNC_CHECK("KernelReduceByKeyPreprocess");
 
@@ -208,18 +208,18 @@ MGPU_HOST void ReduceByKeyPreprocess(int count, KeysIt keys_global,
 			context.Stream());
 	if(count_host) {
 		if(AsyncTransfer) {
-			cudaError_t error = cudaMemcpyAsync(context.PageLocked(), 
+			hipError_t error = hipMemcpyAsync(context.PageLocked(), 
 				data->limitsDevice->get() + numBlocks, sizeof(int),
-				cudaMemcpyDeviceToHost, context.Stream());
-			error = cudaEventRecord(context.Event(), context.Stream());
+				hipMemcpyDeviceToHost, context.Stream());
+			error = hipEventRecord(context.Event(), context.Stream());
 		} else
 			copyDtoH(count_host, data->limitsDevice->get() + numBlocks, 1);
 	}
 
 	// Output one key per segment.
 	if(keysDest_global) {
-		KernelReduceByKeyEmit<Tuning>
-			<<<numBlocks, launch.x, 0, context.Stream()>>>(keys_global,
+		hipLaunchKernelGGL((KernelReduceByKeyEmit<Tuning, KeysIt, KeyType>),
+			dim3(numBlocks), dim3(launch.x), 0, context.Stream(), keys_global,
 			count, data->threadCodesDevice->get(), data->limitsDevice->get(),
 			keysDest_global);
 		MGPU_SYNC_CHECK("KernelReduceByKeyEmit");
@@ -227,7 +227,7 @@ MGPU_HOST void ReduceByKeyPreprocess(int count, KeysIt keys_global,
 
 	// Retrieve the number of rows.
 	if(AsyncTransfer && count_host) {
-		cudaError_t error = cudaEventSynchronize(context.Event());
+		hipError_t error = hipEventSynchronize(context.Event());
 		*count_host = *context.PageLocked();
 	}
 	data->numSegments = count_host ? *count_host : -1;
@@ -256,10 +256,10 @@ MGPU_HOST void ReduceByKey(KeysIt keys_global, InputIt data_global, int count,
 	const bool AsyncTransfer = true;
 	if(count_host) {
 		if(AsyncTransfer) {
-			cudaError_t error = cudaMemcpyAsync(context.PageLocked(), 
-				count_global, sizeof(int), cudaMemcpyDeviceToHost, 
+			hipError_t error = hipMemcpyAsync(context.PageLocked(), 
+				count_global, sizeof(int), hipMemcpyDeviceToHost, 
 				context.Stream());
-			error = cudaEventRecord(context.Event(), context.Stream());
+			error = hipEventRecord(context.Event(), context.Stream());
 		} else
 			copyDtoH(count_host, count_global, 1);
 	}
@@ -269,7 +269,7 @@ MGPU_HOST void ReduceByKey(KeysIt keys_global, InputIt data_global, int count,
 
 	// Retrieve the number of segments.
 	if(AsyncTransfer && count_host) {
-		cudaError_t error = cudaEventSynchronize(context.Event());
+		hipError_t error = hipEventSynchronize(context.Event());
 		*count_host = *context.PageLocked();
 	}
 }

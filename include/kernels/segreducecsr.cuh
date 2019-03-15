@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -313,8 +314,8 @@ MGPU_HOST void SegReduceInner(InputIt data_global, CsrIt csr_global,
 
 	// Segmented reduction without source intervals.
 	MGPU_MEM(T) carryOutDevice = context.Malloc<T>(numBlocks);
-	KernelSegReduceCsr<Tuning, Indirect>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(csr_global,
+	hipLaunchKernelGGL((KernelSegReduceCsr<Tuning, Indirect, CsrIt, SourcesIt, InputIt, DestIt,
+		T, Op>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(), csr_global,
 		sources_global, count, limitsDevice->get(), data_global, identity, op, 
 		dest_global, carryOutDevice->get());
 	MGPU_SYNC_CHECK("KernelSegReduceCsr");
@@ -476,8 +477,8 @@ MGPU_HOST void SegReduceApply(const SegReducePreprocessData& preprocess,
 		// Support empties.
 		MGPU_MEM(T) tempOutDevice = context.Malloc<T>(preprocess.numSegments2);
 		MGPU_MEM(T) carryOutDevice = context.Malloc<T>(preprocess.numBlocks);
-		KernelSegReduceApply<Tuning>
-			<<<preprocess.numBlocks, launch.x, 0, context.Stream()>>>(
+		hipLaunchKernelGGL((KernelSegReduceApply<Tuning, InputIt, DestIt, T, Op>),
+			dim3(preprocess.numBlocks), dim3(launch.x), 0, context.Stream(), 
 			preprocess.threadCodesDevice->get(), preprocess.count, 
 			preprocess.limitsDevice->get(), data_global, identity, op, 
 			tempOutDevice->get(), carryOutDevice->get());
@@ -496,8 +497,8 @@ MGPU_HOST void SegReduceApply(const SegReducePreprocessData& preprocess,
 	} else {
 		// No empties.
 		MGPU_MEM(T) carryOutDevice = context.Malloc<T>(preprocess.numBlocks);
-		KernelSegReduceApply<Tuning>
-			<<<preprocess.numBlocks, launch.x, 0, context.Stream()>>>(
+		hipLaunchKernelGGL((KernelSegReduceApply<Tuning, InputIt, DestIt, T, Op>),
+			dim3(preprocess.numBlocks), dim3(launch.x), 0, context.Stream(), 
 			preprocess.threadCodesDevice->get(), preprocess.count, 
 			preprocess.limitsDevice->get(), data_global, identity, op, 
 			dest_global, carryOutDevice->get());

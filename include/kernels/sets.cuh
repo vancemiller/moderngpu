@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -259,8 +260,9 @@ MGPU_HOST int SetOpKeys(It1 a_global, int aCount, It2 b_global, int bCount,
 		// Allocate enough temporary space for all outputs.
 		MGPU_MEM(T) keysTempDevice = context.Malloc<T>(NV * numBlocks);
 
-		KernelSetOp<Tuning, Op, Duplicates, 2, false>
-			<<<numBlocks, launch.x, 0, context.Stream()>>>(a_global, 
+		hipLaunchKernelGGL((KernelSetOp<Tuning, Op, Duplicates, 2, false, It1, It2, T*,
+			const int*, const int*, int*, Comp>),
+			dim3(numBlocks), dim3(launch.x), 0, context.Stream(), a_global, 
 			(const int*)0, aCount, b_global, (const int*)0, bCount,
 			countsDevice->get(), partitionsDevice->get(), keysTempDevice->get(),
 			(int*)0, comp);
@@ -276,16 +278,16 @@ MGPU_HOST int SetOpKeys(It1 a_global, int aCount, It2 b_global, int bCount,
 
 		const int NT2 = 256;
 		int numCompactBlocks = MGPU_DIV_UP(numBlocks, NT2 / WARP_SIZE);
-		KernelSetCompact<256><<<numCompactBlocks, NT2, 0, context.Stream()>>>(
+		hipLaunchKernelGGL((KernelSetCompact<256, T, T*>), dim3(numCompactBlocks), dim3(NT2), 0, context.Stream(), 
 			keysTempDevice->get(), countsDevice->get(), numBlocks, NV,
 			keysDevice->get());
 		MGPU_SYNC_CHECK("KernelSetCompact");
 
 	} else {
-		KernelSetOp<Tuning, Op, Duplicates, 0, false>
-			<<<numBlocks, launch.x, 0, context.Stream()>>>(a_global, 
-			(const int*)0, aCount, b_global, (const int*)0, bCount, 
-			countsDevice->get(), partitionsDevice->get(), (T*)0, (int*)0, comp);
+		hipLaunchKernelGGL((KernelSetOp<Tuning, Op, Duplicates, 0, false, It1, It2, T*,
+			const int*, const int*, int*, Comp>), dim3(numBlocks), dim3(launch.x), 0,
+			context.Stream(), a_global, (const int*)0, aCount, b_global, (const int*)0,
+			bCount, countsDevice->get(), partitionsDevice->get(), (T*)0, (int*)0, comp);
 		MGPU_SYNC_CHECK("KernelSetOp");
 
 		// Scan block counts.
@@ -294,9 +296,9 @@ MGPU_HOST int SetOpKeys(It1 a_global, int aCount, It2 b_global, int bCount,
 		// Allocate storage for the keys. Run the set operations again, but
 		// this time stream the outputs.
 		keysDevice = context.Malloc<T>(total);
-		KernelSetOp<Tuning, Op, Duplicates, 1, false>
-			<<<numBlocks, launch.x, 0, context.Stream()>>>(a_global, (int*)0, 
-			aCount, b_global, (int*)0, bCount, countsDevice->get(), 
+		hipLaunchKernelGGL((KernelSetOp<Tuning, Op, Duplicates, 1, false, It1, It2, T*,
+			int*, int*, int*, Comp>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(),
+			a_global, (int*)0, aCount, b_global, (int*)0, bCount, countsDevice->get(), 
 			partitionsDevice->get(), keysDevice->get(), (int*)0, comp);
 		MGPU_SYNC_CHECK("KernelSetOp");
 	}
@@ -336,8 +338,9 @@ MGPU_HOST int SetOpPairs(KeysIt1 aKeys_global, ValsIt1 aVals_global, int aCount,
 
 	// Run the kernel once to count outputs per block.
 	MGPU_MEM(int) countsDevice = context.Malloc<int>(numBlocks + 1);
-	KernelSetOp<Tuning, Op, Duplicates, 0, false>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(aKeys_global,
+	hipLaunchKernelGGL((KernelSetOp<Tuning, Op, Duplicates, 0, false, KeysIt1, KeysIt2,
+		KeyType*, ValsIt1, ValsIt2, int*, Comp>),
+		dim3(numBlocks), dim3(launch.x), 0, context.Stream(), aKeys_global,
 		(const int*)0, aCount, bKeys_global, (const int*)0, bCount, 
 		countsDevice->get(), partitionsDevice->get(), (KeyType*)0, (int*)0,
 		comp);
@@ -350,8 +353,9 @@ MGPU_HOST int SetOpPairs(KeysIt1 aKeys_global, ValsIt1 aVals_global, int aCount,
 	MGPU_MEM(ValType) valsDevice = context.Malloc<ValType>(total);
 
 	// Recompute and stream the outputs.
-	KernelSetOp<Tuning, Op, Duplicates, 1, true>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(aKeys_global, 
+	hipLaunchKernelGGL((KernelSetOp<Tuning, Op, Duplicates, 1, true, KeysIt1, KeysIt2,
+		KeyType*, ValsIt1, ValsIt2, ValType*, Comp>),
+		dim3(numBlocks), dim3(launch.x), 0, context.Stream(), aKeys_global, 
 		aVals_global, aCount, bKeys_global, bVals_global, bCount,
 		countsDevice->get(), partitionsDevice->get(), keysDevice->get(),
 		valsDevice->get(), comp);

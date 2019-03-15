@@ -196,22 +196,6 @@ template<> struct numeric_limits<double> {
 	MGPU_HOST_DEVICE static double MulIdent() { return 1; }
 };
 
-
-MGPU_HOST_DEVICE int2 operator+(int2 a, int2 b) {
-	return make_int2(a.x + b.x, a.y + b.y); 
-}
-MGPU_HOST_DEVICE int2& operator+=(int2& a, int2 b) {
-	a = a + b;
-	return a;
-}
-MGPU_HOST_DEVICE int2 operator*(int2 a, int2 b) {
-	return make_int2(a.x * b.x, a.y * b.y);
-}
-MGPU_HOST_DEVICE int2& operator*=(int2& a, int2 b) {
-	a = a * b;
-	return a;
-}
-
 template<typename T>
 MGPU_HOST_DEVICE T max(T a, T b) {
 #if !defined(__CUDA_ARCH__) || (__CUDA_ARCH__ < 100)

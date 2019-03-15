@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -81,10 +82,10 @@ void ParallelMergeKeys(InputIt1 a_global, int aCount, InputIt2 b_global,
 	int aBlocks = MGPU_DIV_UP(aCount, NT);
 	int bBlocks = MGPU_DIV_UP(bCount, NT);
 
-	ParallelMergeA<NT, false><<<aBlocks, NT>>>(a_global, (const int*)0, aCount,
+	hipLaunchKernelGGL((ParallelMergeA<NT, false>), dim3(aBlocks), dim3(NT), 0, 0, a_global, (const int*)0, aCount,
 		b_global, bCount, dest_global, (int*)0, comp);
 
-	ParallelMergeB<NT, false><<<bBlocks, NT>>>(a_global, aCount, b_global,
+	hipLaunchKernelGGL((ParallelMergeB<NT, false>), dim3(bBlocks), dim3(NT), 0, 0, a_global, aCount, b_global,
 		(const int*)0, bCount, dest_global, (int*)0, comp);
 }
 
@@ -99,10 +100,10 @@ void ParallelMergePairs(InputIt1 a_global, AValsIt aVals_global, int aCount,
 	int aBlocks = MGPU_DIV_UP(aCount, NT);
 	int bBlocks = MGPU_DIV_UP(bCount, NT);
 
-	ParallelMergeA<NT, true><<<aBlocks, NT>>>(a_global, aVals_global, aCount,
+	hipLaunchKernelGGL((ParallelMergeA<NT, true>), dim3(aBlocks), dim3(NT), 0, 0, a_global, aVals_global, aCount,
 		b_global, bCount, dest_global, vals_global, comp);
 
-	ParallelMergeB<NT, true><<<bBlocks, NT>>>(a_global, aCount, b_global,
+	hipLaunchKernelGGL((ParallelMergeB<NT, true>), dim3(bBlocks), dim3(NT), 0, 0, a_global, aCount, b_global,
 		bVals_global, bCount, dest_global, vals_global, comp);
 }
 

@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -52,8 +53,7 @@ MGPU_HOST void TuningMergesortKeys(T* data_global, int count, Comp comp,
 	T* source = data_global;
 	T* dest = destDevice->get();
 
-	KernelBlocksort<Tuning, false>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(source, (const int*)0,
+	hipLaunchKernelGGL((KernelBlocksort<Tuning, false>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(), source, (const int*)0,
 		count, (1 & numPasses) ? dest : source, (int*)0, comp);
 	if(1 & numPasses) std::swap(source, dest);
 
@@ -62,8 +62,7 @@ MGPU_HOST void TuningMergesortKeys(T* data_global, int count, Comp comp,
 		MGPU_MEM(int) partitionsDevice = MergePathPartitions<MgpuBoundsLower>(
 			source, count, source, 0, NV, coop, comp, context);
 		
-		KernelMerge<Tuning, false, true>
-			<<<numBlocks, launch.x, 0, context.Stream()>>>(source, 
+		hipLaunchKernelGGL((KernelMerge<Tuning, false, true>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(), source, 
 			(const int*)0, count, source, (const int*)0, 0, 
 			partitionsDevice->get(), coop, dest, (int*)0, comp);
 		std::swap(dest, source);

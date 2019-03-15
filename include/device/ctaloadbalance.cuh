@@ -35,6 +35,7 @@
 #pragma once
 
 #include "../device/ctasearch.cuh"
+#include "../device/ctamerge.cuh"
 #include "../device/loadstore.cuh"
 
 namespace mgpu {

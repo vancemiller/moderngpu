@@ -6,22 +6,22 @@ all: build
 build: benchmarkspmvcsr
 
 benchmarkspmvcsr.o: benchmarkspmvcsr.cu 
-	nvcc $(NVCCFLAGS) -o $@ -c $<
+	hipcc $(hipccFLAGS) -o $@ -c $<
 
 mgpucontext.o: ../src/mgpucontext.cu
-	nvcc $(NVCCFLAGS) -o $@ -c $<
+	hipcc $(hipccFLAGS) -o $@ -c $<
 
 mgpuutil.o: ../src/mgpuutil.cpp
-	nvcc $(NVCCFLAGS) -o $@ -c $<
+	hipcc $(hipccFLAGS) -o $@ -c $<
 
 mmio.o: ../src/mmio.cpp
-	nvcc $(NVCCFLAGS) -o $@ -c $<
+	hipcc $(hipccFLAGS) -o $@ -c $<
 
 sparsematrix.o: ../src/sparsematrix.cpp
-	nvcc $(NVCCFLAGS) -o $@ -c $<
+	hipcc $(hipccFLAGS) -o $@ -c $<
 
 benchmarkspmvcsr: benchmarkspmvcsr.o mgpucontext.o mgpuutil.o mmio.o sparsematrix.o
-	nvcc $(NVCCFLAGS) -o $@ $+ -lcusparse
+	hipcc $(hipccFLAGS) -o $@ $+ -lcusparse
 
 run: build
 	./benchmarkspmvcsr

@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -63,8 +64,7 @@ MGPU_MEM(int) BinarySearchPartitions(int count, It1 data_global, int numItems,
 	int numPartitionBlocks = MGPU_DIV_UP(numBlocks + 1, NT);
 	MGPU_MEM(int) partitionsDevice = context.Malloc<int>(numBlocks + 1);
 
-	KernelBinarySearch<NT, Bounds>
-		<<<numPartitionBlocks, NT, 0, context.Stream()>>>(count, data_global, 
+	hipLaunchKernelGGL((KernelBinarySearch<NT, Bounds>), dim3(numPartitionBlocks), dim3(NT), 0, context.Stream(), count, data_global, 
 		numItems, nv, partitionsDevice->get(), numBlocks + 1, comp);
 	MGPU_SYNC_CHECK("KernelBinarySearch");
 
@@ -108,8 +108,7 @@ MGPU_MEM(int) MergePathPartitions(It1 a_global, int aCount, It2 b_global,
 	int numPartitionBlocks = MGPU_DIV_UP(numPartitions + 1, NT);
 	MGPU_MEM(int) partitionsDevice = context.Malloc<int>(numPartitions + 1);
 
-	KernelMergePartition<NT, Bounds>
-		<<<numPartitionBlocks, NT, 0, context.Stream()>>>(a_global, aCount,
+	hipLaunchKernelGGL((KernelMergePartition<NT, Bounds>), dim3(numPartitionBlocks), dim3(NT), 0, context.Stream(), a_global, aCount,
 		b_global, bCount, nv, coop, partitionsDevice->get(), numPartitions + 1, 
 		comp);
 	MGPU_SYNC_CHECK("KernelMergePartition");
@@ -149,8 +148,7 @@ MGPU_MEM(int) FindSetPartitions(It1 a_global, int aCount, It2 b_global,
 	int numPartitionBlocks = MGPU_DIV_UP(numPartitions + 1, NT);
 	MGPU_MEM(int) partitionsDevice = context.Malloc<int>(numPartitions + 1);
 
-	KernelSetPartition<NT, Duplicates>
-		<<<numPartitionBlocks, NT, 0, context.Stream()>>>(a_global, aCount,
+	hipLaunchKernelGGL((KernelSetPartition<NT, Duplicates>), dim3(numPartitionBlocks), dim3(NT), 0, context.Stream(), a_global, aCount,
 		b_global, bCount, nv, partitionsDevice->get(), numPartitions + 1, comp);
 	MGPU_SYNC_CHECK("KernelSetPartition");
 

@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -129,8 +130,7 @@ MGPU_HOST void MergesortKeys(T* data_global, int count, Comp comp,
 	T* source = data_global;
 	T* dest = destDevice->get();
 
-	KernelBlocksort<Tuning, false>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(source, (const int*)0,
+	hipLaunchKernelGGL((KernelBlocksort<Tuning, false>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(), source, (const int*)0,
 		count, (1 & numPasses) ? dest : source, (int*)0, comp);
 	MGPU_SYNC_CHECK("KernelBlocksort");
 	
@@ -141,8 +141,9 @@ MGPU_HOST void MergesortKeys(T* data_global, int count, Comp comp,
 		MGPU_MEM(int) partitionsDevice = MergePathPartitions<MgpuBoundsLower>(
 			source, count, source, 0, NV, coop, comp, context);
 		
-		KernelMerge<Tuning, false, false>
-			<<<numBlocks, launch.x, 0, context.Stream()>>>(source, 
+		hipLaunchKernelGGL((KernelMerge<Tuning, false, false, T*, T*, T*,
+			const int*, const int*, int*, Comp>), dim3(numBlocks),
+			dim3(launch.x), 0, context.Stream(), source, 
 			(const int*)0, count, source, (const int*)0, 0, 
 			partitionsDevice->get(), coop, dest, (int*)0, comp);
 		MGPU_SYNC_CHECK("KernelMerge");
@@ -180,7 +181,7 @@ MGPU_HOST void MergesortPairs(KeyType* keys_global, ValType* values_global,
 	ValType* valsSource = values_global;
 	ValType* valsDest = valsDestDevice->get();
 
-	KernelBlocksort<Tuning, true><<<numBlocks, launch.x, 0, context.Stream()>>>(
+	hipLaunchKernelGGL((KernelBlocksort<Tuning, true>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(), 
 		keysSource, valsSource, count, (1 & numPasses) ? keysDest : keysSource, 
 		(1 & numPasses) ? valsDest : valsSource, comp);
 	MGPU_SYNC_CHECK("KernelBlocksort");
@@ -195,8 +196,9 @@ MGPU_HOST void MergesortPairs(KeyType* keys_global, ValType* values_global,
 		MGPU_MEM(int) partitionsDevice = MergePathPartitions<MgpuBoundsLower>(
 			keysSource, count, keysSource, 0, NV, coop, comp, context);
 
-		KernelMerge<Tuning, true, false>
-			<<<numBlocks, launch.x, 0, context.Stream()>>>(keysSource, 
+		hipLaunchKernelGGL((KernelMerge<Tuning, true, false, KeyType*, KeyType*, KeyType*,
+			ValType*, ValType*, ValType*, Comp>), dim3(numBlocks), dim3(launch.x),
+			0, context.Stream(), keysSource, 
 			valsSource, count, keysSource, valsSource, 0, 
 			partitionsDevice->get(), coop, keysDest, valsDest, comp);
 		MGPU_SYNC_CHECK("KernelMerge");
@@ -232,7 +234,7 @@ MGPU_HOST void MergesortIndices(KeyType* keys_global, int* values_global,
 	int* valsSource = values_global;
 	int* valsDest = valsDestDevice->get();
 
-	KernelBlocksort<Tuning, true><<<numBlocks, launch.x, 0, context.Stream()>>>(
+	hipLaunchKernelGGL((KernelBlocksort<Tuning, true>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(), 
 		keysSource, mgpu::counting_iterator<int>(0), count, 
 		(1 & numPasses) ? keysDest : keysSource, 
 		(1 & numPasses) ? valsDest : valsSource, comp);
@@ -248,9 +250,9 @@ MGPU_HOST void MergesortIndices(KeyType* keys_global, int* values_global,
 		MGPU_MEM(int) partitionsDevice = MergePathPartitions<MgpuBoundsLower>(
 			keysSource, count, keysSource, 0, NV, coop, comp, context);
 
-		KernelMerge<Tuning, true, false>
-			<<<numBlocks, launch.x, 0, context.Stream()>>>(keysSource, 
-			valsSource, count, keysSource, valsSource, 0, 
+		hipLaunchKernelGGL((KernelMerge<Tuning, true, false, KeyType*, KeyType*, KeyType*,
+			int*, int*, int*, Comp>), dim3(numBlocks), dim3(launch.x), 0,
+			context.Stream(), keysSource, valsSource, count, keysSource, valsSource, 0, 
 			partitionsDevice->get(), coop, keysDest, valsDest, comp);
 		MGPU_SYNC_CHECK("KernelMerge");
 

@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -208,7 +209,8 @@ MGPU_HOST void SegReduceSpine(const int* limits_global, int count,
 
 	// Fix-up the segment outputs between the original tiles.
 	MGPU_MEM(T) carryOutDevice = context.Malloc<T>(numBlocks);
-	KernelSegReduceSpine1<NT><<<numBlocks, NT, 0, context.Stream()>>>(
+	hipLaunchKernelGGL((KernelSegReduceSpine1<NT, T, DestIt, Op>),
+		dim3(numBlocks), dim3(NT), 0, context.Stream(), 
 		limits_global, count, dest_global, carryIn_global, identity, op,
 		carryOutDevice->get());
 	MGPU_SYNC_CHECK("KernelSegReduceSpine1");
@@ -216,7 +218,8 @@ MGPU_HOST void SegReduceSpine(const int* limits_global, int count,
 	// Loop over the segments that span the tiles of 
 	// KernelSegReduceSpine1 and fix those.
 	if(numBlocks > 1) {
-		KernelSegReduceSpine2<NT><<<1, NT, 0, context.Stream()>>>(
+		hipLaunchKernelGGL((KernelSegReduceSpine2<NT, T, DestIt, Op>),
+			dim3(1), dim3(NT), 0, context.Stream(), 
 			limits_global, numBlocks, count, NT, dest_global,
 			carryOutDevice->get(), identity, op);
 		MGPU_SYNC_CHECK("KernelSegReduceSpine2");

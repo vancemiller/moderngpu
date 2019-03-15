@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -305,8 +306,7 @@ MGPU_HOST void SpmvCsrInner(MatrixIt matrix_global, ColsIt cols_global, int nz,
 		
 	// Evaluate the Spmv product.
 	MGPU_MEM(T) carryOutDevice = context.Malloc<T>(numBlocks);
-	KernelSpmvCsr<Tuning, Indirect, LoadLeft>
-		<<<numBlocks, launch.x, 0, context.Stream()>>>(matrix_global,
+	hipLaunchKernelGGL((KernelSpmvCsr<Tuning, Indirect, LoadLeft>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(), matrix_global,
 		cols_global, nz, csr_global, sources_global, vec_global, 
 		limitsDevice->get(), dest_global, carryOutDevice->get(), identity, 
 		mulOp, addOp);
@@ -506,8 +506,7 @@ MGPU_HOST void SpmvApplyHost(const SpmvPreprocessData& preprocess,
 		// Support empties.
 		MGPU_MEM(T) destDevice = context.Malloc<T>(preprocess.numSegments2);
 		MGPU_MEM(T) carryOutDevice = context.Malloc<T>(preprocess.numBlocks);
-		KernelSpmvApply<Tuning, LoadLeft>
-			<<<preprocess.numBlocks, launch.x, 0, context.Stream()>>>(
+		hipLaunchKernelGGL((KernelSpmvApply<Tuning, LoadLeft>), dim3(preprocess.numBlocks), dim3(launch.x), 0, context.Stream(), 
 			preprocess.threadCodesDevice->get(), matrix_global, cols_global,
 			preprocess.count, vec_global, preprocess.limitsDevice->get(),
 			destDevice->get(), carryOutDevice->get(), identity, mulOp,
@@ -527,8 +526,7 @@ MGPU_HOST void SpmvApplyHost(const SpmvPreprocessData& preprocess,
 
 		// Evaluate the Spmv product.
 		MGPU_MEM(T) carryOutDevice = context.Malloc<T>(preprocess.numBlocks);
-		KernelSpmvApply<Tuning, LoadLeft>
-			<<<preprocess.numBlocks, launch.x, 0, context.Stream()>>>(
+		hipLaunchKernelGGL((KernelSpmvApply<Tuning, LoadLeft>), dim3(preprocess.numBlocks), dim3(launch.x), 0, context.Stream(), 
 			preprocess.threadCodesDevice->get(), matrix_global, cols_global,
 			preprocess.count, vec_global, preprocess.limitsDevice->get(),
 			dest_global, carryOutDevice->get(), identity, mulOp, addOp);

@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -141,7 +142,8 @@ MGPU_HOST void BulkRemove(InputIt source_global, int sourceCount,
 		context);
 
 	int numBlocks = MGPU_DIV_UP(sourceCount, NV);
-	KernelBulkRemove<Tuning><<<numBlocks, launch.x, 0, context.Stream()>>>(
+	hipLaunchKernelGGL((KernelBulkRemove<Tuning, InputIt, IndicesIt, OutputIt>),
+		dim3(numBlocks), dim3(launch.x), 0, context.Stream(), 
 		source_global, sourceCount, indices_global, indicesCount, 
 		partitionsDevice->get(), dest_global);
 	MGPU_SYNC_CHECK("KernelBulkRemove");

@@ -107,7 +107,8 @@ MGPU_DEVICE uint prmt_ptx(uint a, uint b, uint index) {
 
 #define MEMBERMASK 0xffffffff
 
-__device__ __forceinline__ float shfl_up(float var, 
+__device__ __forceinline__
+static float shfl_up(float var, 
 	unsigned int delta, int width = 32, unsigned mask=MEMBERMASK) {
 
 #if (__CUDA_ARCH__ >= 300 && __CUDACC_VER_MAJOR__ < 9)
@@ -118,7 +119,8 @@ __device__ __forceinline__ float shfl_up(float var,
 	return var;
 }
 
-__device__ __forceinline__ double shfl_up(double var, 
+__device__ __forceinline__
+static double shfl_up(double var, 
 	unsigned int delta, int width = 32, unsigned mask=MEMBERMASK) {
 
 #if (__CUDA_ARCH__ >= 300 && __CUDACC_VER_MAJOR__ < 9)

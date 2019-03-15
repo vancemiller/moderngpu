@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  * 
@@ -121,7 +122,7 @@ MGPU_LAUNCH_BOUNDS void KernelScanParallel(DataIt data_global, int count,
 	int tid = threadIdx.x;
 	
 	// Scan from data_global into dest_global.
-	T total = TileScan::DeviceScanTile<Type>(data_global, count, tid, identity, 
+	T total = TileScan::template DeviceScanTile<Type>(data_global, count, tid, identity, 
 		op, identity, dest_global, shared.tileScanStorage);
 
 	if(!tid && total_global)
@@ -150,7 +151,7 @@ MGPU_LAUNCH_BOUNDS void KernelScanDownsweep(DataIt data_global, int count,
 	T start = reduction_global[block];
 
 	// Scan from data_global into dest_global.
-	TileScan::DeviceScanTile<Type>(data_global + gid, count2, tid, 
+	TileScan::template DeviceScanTile<Type>(data_global + gid, count2, tid, 
 		identity, op, start, dest_global + gid, tileScanStorage);
 }
 
@@ -170,19 +171,19 @@ MGPU_HOST void Scan(DataIt data_global, int count, T identity, Op op,
 
 	if(count <= 256) {
 		typedef LaunchBoxVT<256, 1> Tuning;
-		KernelScanParallel<Tuning, Type><<<1, 256, 0, context.Stream()>>>(
+		hipLaunchKernelGGL((KernelScanParallel<Tuning, Type>), dim3(1), dim3(256), 0, context.Stream(), 
 			data_global, count, identity, op, reduce_global, dest_global);
 		MGPU_SYNC_CHECK("KernelScanParallel");
 
 	} else if(count <= 768) {
 		typedef LaunchBoxVT<256, 3> Tuning;
-		KernelScanParallel<Tuning, Type><<<1, 256, 0, context.Stream()>>>(
+		hipLaunchKernelGGL((KernelScanParallel<Tuning, Type>), dim3(1), dim3(256), 0, context.Stream(), 
 			data_global, count, identity, op, reduce_global, dest_global);
 		MGPU_SYNC_CHECK("KernelScanParallel");
 
 	} else if (count <= 512 * 5) {
 		typedef LaunchBoxVT<512, 5> Tuning;
-		KernelScanParallel<Tuning, Type><<<1, 512, 0, context.Stream()>>>(
+		hipLaunchKernelGGL((KernelScanParallel<Tuning, Type>), dim3(1), dim3(512), 0, context.Stream(), 
 			data_global, count, identity, op, reduce_global, dest_global);
 		MGPU_SYNC_CHECK("KernelScanParallel");
 
@@ -198,7 +199,7 @@ MGPU_HOST void Scan(DataIt data_global, int count, T identity, Op op,
 		MGPU_MEM(T) reduceDevice = context.Malloc<T>(numBlocks + 1);
 
 		// Reduce tiles into reduceDevice.
-		KernelReduce<Tuning><<<numBlocks, launch.x, 0, context.Stream()>>>(
+		hipLaunchKernelGGL((KernelReduce<Tuning>), dim3(numBlocks), dim3(launch.x), 0, context.Stream(), 
 			data_global, count, identity, op, reduceDevice->get());
 		MGPU_SYNC_CHECK("KernelReduce");
 
@@ -207,8 +208,8 @@ MGPU_HOST void Scan(DataIt data_global, int count, T identity, Op op,
 			 reduce_global, (T*)0, reduceDevice->get(), context);
 
 		// Add scanned reductions back into output and scan.
-		KernelScanDownsweep<Tuning, Type>
-			<<<numBlocks, launch.x, 0, context.Stream()>>>(data_global, count,
+		hipLaunchKernelGGL((KernelScanDownsweep<Tuning, Type, DataIt, DestIt, T, Op>),
+			dim3(numBlocks), dim3(launch.x), 0, context.Stream(), data_global, count,
 			reduceDevice->get(), identity, op, dest_global);
 		MGPU_SYNC_CHECK("KernelScanDownsweep");
 	}
